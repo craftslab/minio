@@ -1,0 +1,48 @@
+# Build stage
+FROM golang:1.24-alpine AS builder
+
+# Install build dependencies
+RUN apk add --no-cache git make
+
+WORKDIR /build
+
+# Copy go mod files
+COPY go.mod go.sum ./
+RUN go mod download
+
+# Copy source code
+COPY . .
+
+# Build MinIO binary
+# Following instructions from README.md: "Build Docker Image" section
+# The binary must exist in the project root for docker build
+ARG TARGETOS=linux
+ARG TARGETARCH=amd64
+ENV CGO_ENABLED=0
+ENV GOOS=${TARGETOS}
+ENV GOARCH=${TARGETARCH}
+
+RUN go build -tags kqueue -trimpath -o /build/minio
+
+# Final stage - use alpine for compatibility
+FROM alpine:latest
+
+# Install ca-certificates for HTTPS support
+RUN apk --no-cache add ca-certificates && \
+    mkdir -p /data
+
+# Copy the minio binary from builder
+COPY --from=builder /build/minio /usr/bin/minio
+
+# Copy entrypoint script if it exists
+COPY dockerscripts/docker-entrypoint.sh /usr/bin/docker-entrypoint.sh
+RUN chmod +x /usr/bin/docker-entrypoint.sh
+
+# Set working directory
+WORKDIR /data
+
+# Use the entrypoint script
+ENTRYPOINT ["/usr/bin/docker-entrypoint.sh"]
+
+# Default command
+CMD ["minio", "server", "/data", "--console-address", ":9001"]
