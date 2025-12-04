@@ -12,6 +12,12 @@ services:
       # Use relative path (./data) or absolute path (/path/to/minio/data)
       # Example: - /path/to/minio/data:/data
       - ./data:/data
+      # Mount certificates directory for HTTPS support
+      # Place your SSL certificates (public.pem and private.key) in ./certs directory
+      # MinIO will automatically detect and use certificates named:
+      # - public.pem for the certificate
+      # - private.key for the private key
+      - ./certs:/root/.minio/certs
       # Alternative: Use named volume (uncomment below and comment above)
       # - minio-data:/data
     environment:
